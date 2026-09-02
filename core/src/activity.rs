@@ -128,9 +128,64 @@ impl ActivitySnapshot {
         })
     }
 
-    #[cfg(not(target_os = "macos"))]
+    #[cfg(target_os = "linux")]
+    pub(crate) fn capture(cancel: &AtomicBool) -> Result<Self> {
+        let euid = unsafe { libc::geteuid() };
+        let proc_dir = std::fs::read_dir("/proc").map_err(|e| format!("Cannot read /proc: {e}"))?;
+        let mut working_directories = Vec::new();
+        let mut executable_paths = Vec::new();
+        let self_pid = std::process::id();
+
+        for entry in proc_dir {
+            safety::cancelled(cancel)?;
+            let Ok(entry) = entry else { continue };
+            let file_name = entry.file_name();
+            let Some(name_str) = file_name.to_str() else {
+                continue;
+            };
+            let Ok(pid) = name_str.parse::<u32>() else {
+                continue;
+            };
+
+            use std::os::unix::fs::MetadataExt;
+            let Ok(metadata) = entry.metadata() else {
+                continue;
+            };
+            if metadata.uid() != euid {
+                continue;
+            }
+
+            let exe_link = format!("/proc/{pid}/exe");
+            if let Some(exe) = std::fs::read_link(&exe_link)
+                .ok()
+                .filter(|p| p.is_absolute())
+            {
+                executable_paths.push(exe);
+            }
+
+            if pid == self_pid {
+                continue;
+            }
+
+            let cwd_link = format!("/proc/{pid}/cwd");
+            if let Some(cwd) = std::fs::read_link(&cwd_link)
+                .ok()
+                .filter(|p| p.is_absolute())
+            {
+                working_directories.push(cwd);
+            }
+        }
+
+        Ok(Self {
+            working_directories,
+            executable_paths,
+            running_app_bundle_ids: OnceCell::new(),
+        })
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "linux")))]
     pub(crate) fn capture(_cancel: &AtomicBool) -> Result<Self> {
-        Err("Reliable activity checks are supported only by the native macOS engine".into())
+        Err("Reliable activity checks are supported only on macOS and Linux".into())
     }
 
     /// Reuse one bounded-age snapshot across nearby gates. A failed capture is
@@ -232,9 +287,14 @@ impl ActivitySnapshot {
                     native::bundle_identifier,
                 )
             }
-            #[cfg(not(target_os = "macos"))]
+            #[cfg(target_os = "linux")]
             {
-                Err("Reliable activity checks are supported only by the native macOS engine".into())
+                let _ = cancel;
+                Ok(BTreeSet::new())
+            }
+            #[cfg(not(any(target_os = "macos", target_os = "linux")))]
+            {
+                Err("Reliable activity checks are supported only on macOS and Linux".into())
             }
         });
         match identifiers {

@@ -2006,7 +2006,7 @@ mod tests {
         assert_eq!(std::fs::read(outside).unwrap(), [0x61; 8192]);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn review_fixture(large: bool) -> (tempfile::TempDir, Store, Root, Candidate) {
         let temp = tempfile::tempdir().unwrap();
         let base = temp.path().canonicalize().unwrap();
@@ -2035,6 +2035,7 @@ mod tests {
             } else {
                 file.write_all(b"disposable reviewed payload").unwrap();
             }
+            file.sync_all().unwrap();
         }
         let modified = std::time::SystemTime::now() - Duration::from_secs(8 * 86_400);
         for path in [
@@ -2073,28 +2074,28 @@ mod tests {
         (temp, store, root, candidate)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     struct FakeTrashState {
         destination: PathBuf,
         calls: usize,
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     thread_local! {
         static FAKE_TRASH_STATE: RefCell<Option<FakeTrashState>> = const { RefCell::new(None) };
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     struct FakeTrashGuard;
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     impl Drop for FakeTrashGuard {
         fn drop(&mut self) {
             FAKE_TRASH_STATE.with(|state| *state.borrow_mut() = None);
         }
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn install_fake_trash(destination: PathBuf) -> FakeTrashGuard {
         FAKE_TRASH_STATE.with(|state| {
             let mut state = state.borrow_mut();
@@ -2110,14 +2111,14 @@ mod tests {
         FakeTrashGuard
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn fake_trash_calls() -> usize {
         FAKE_TRASH_STATE.with(|state| state.borrow().as_ref().map_or(0, |state| state.calls))
     }
 
     /// Test Trash never invokes AppKit or touches the user's Trash. It only
     /// moves the staged file to a preconfigured sibling inside the temp fixture.
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     unsafe extern "C" fn fake_trash(
         input: *const libc::c_char,
         output: *mut libc::c_char,
@@ -2150,7 +2151,7 @@ mod tests {
         })
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     struct DuplicateCleanupFixture {
         store: Store,
         root: Root,
@@ -2160,7 +2161,7 @@ mod tests {
         _temp: tempfile::TempDir,
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn write_old_installer(path: &Path) {
         let mut file = File::create(path).unwrap();
         let block = vec![0x5a; 1024 * 1024];
@@ -2177,7 +2178,7 @@ mod tests {
             .unwrap();
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn duplicate_cleanup_fixture() -> DuplicateCleanupFixture {
         let temp = tempfile::Builder::new()
             .prefix("chippytea-duplicate-cleanup-")
@@ -2239,14 +2240,14 @@ mod tests {
         }
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn read_prefix(path: &Path) -> [u8; 8] {
         let mut prefix = [0; 8];
         File::open(path).unwrap().read_exact(&mut prefix).unwrap();
         prefix
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn assert_no_cleanup_credit(store: &Store, receipt: &Receipt) {
         assert_eq!((receipt.credited_bytes, receipt.coins), (0, 0));
         let wallet = store.wallet().unwrap();
@@ -2261,7 +2262,7 @@ mod tests {
         );
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn duplicate_guard_restores_copy_when_keeper_changes_after_staging() {
         let mut fixture = duplicate_cleanup_fixture();
@@ -2308,7 +2309,7 @@ mod tests {
         assert_no_cleanup_credit(&fixture.store, &receipt);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn duplicate_guard_restores_copy_when_cancelled_after_staging() {
         let mut fixture = duplicate_cleanup_fixture();
@@ -2351,7 +2352,7 @@ mod tests {
         assert_no_cleanup_credit(&fixture.store, &receipt);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn duplicate_guard_fake_trash_preserves_the_verified_keeper() {
         let mut fixture = duplicate_cleanup_fixture();
@@ -2462,7 +2463,7 @@ mod tests {
         (temp, store, root, candidate, interpreter)
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn venv_with_internal_symlink_is_measured_and_permanently_removed() {
         let (_temp, mut store, root, candidate, interpreter) = venv_review_fixture();
@@ -2484,7 +2485,7 @@ mod tests {
         );
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn manifest_storage_failure_preserves_contents_and_rolls_back_parent_evidence() {
         let (_temp, mut store, root, candidate) = review_fixture(false);
@@ -2519,7 +2520,7 @@ mod tests {
         assert_eq!(store.wallet().unwrap().credited_bytes, 0);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn cancellation_during_manifest_capture_never_stages_the_artifact() {
         let (_temp, mut store, root, candidate) = review_fixture(false);
@@ -2559,7 +2560,7 @@ mod tests {
         assert_eq!(store.wallet().unwrap().credited_bytes, 0);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn changed_contents_after_manifest_commit_are_preserved_by_staged_verification() {
         let (_temp, mut store, root, candidate) = review_fixture(true);
@@ -2594,7 +2595,7 @@ mod tests {
         assert_eq!(store.wallet().unwrap().credited_bytes, 0);
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn completed_cleanup_reports_real_entry_counts_and_preserves_project_sources() {
         let (_temp, mut store, root, candidate) = review_fixture(true);
@@ -2633,7 +2634,7 @@ mod tests {
         );
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn cancellation_after_removal_releases_manifest_snapshot_and_persists_recovery() {
         let (temp, mut store, root, candidate) = review_fixture(true);

@@ -1489,6 +1489,7 @@ mod tests {
         use std::os::unix::fs::PermissionsExt;
 
         let directory = tempfile::tempdir().unwrap();
+        std::fs::set_permissions(directory.path(), std::fs::Permissions::from_mode(0o700)).unwrap();
         let executable = directory.path().join("chippytea-cli");
         let helper = directory.path().join("chippytea-scan-helper");
         std::fs::write(&executable, b"cli").unwrap();
@@ -1535,6 +1536,15 @@ mod tests {
         let helpers = bundle.join("Contents/Helpers");
         std::fs::create_dir_all(&macos).unwrap();
         std::fs::create_dir_all(&helpers).unwrap();
+        for context in [
+            directory.path(),
+            &bundle,
+            &bundle.join("Contents"),
+            &macos,
+            &helpers,
+        ] {
+            std::fs::set_permissions(context, std::fs::Permissions::from_mode(0o755)).unwrap();
+        }
         let executable = macos.join("Chippytea");
         let helper = helpers.join("chippytea-scan-helper");
         std::fs::write(&executable, b"app").unwrap();

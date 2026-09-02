@@ -1,4 +1,5 @@
-#![cfg(target_os = "macos")]
+#![cfg(any(target_os = "macos", target_os = "linux"))]
+#![allow(clippy::useless_conversion, clippy::unnecessary_cast)]
 
 use chippytea_core::{Engine, model::*};
 use serde_json::json;
