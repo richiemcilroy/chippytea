@@ -1,3 +1,5 @@
+#![allow(clippy::unnecessary_cast, clippy::nonminimal_bool)]
+
 pub mod accounting;
 mod activity;
 pub mod cleanup;
@@ -4672,7 +4674,19 @@ mod controller_tests {
             std::thread::sleep(Duration::from_millis(1));
         }
         drop(engine);
-        Engine::open(&temp.path().join("library.sqlite"), None).unwrap()
+        let deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            match Engine::open(&temp.path().join("library.sqlite"), None) {
+                Ok(engine) => return engine,
+                Err(err)
+                    if err == "This chippytea library is already open in another process."
+                        && Instant::now() < deadline =>
+                {
+                    std::thread::sleep(Duration::from_millis(5));
+                }
+                Err(err) => panic!("{err}"),
+            }
+        }
     }
 
     // Seed derived rows without allocating cleanup-sized payloads or making

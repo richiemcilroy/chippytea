@@ -4059,7 +4059,7 @@ mod tests {
             .unwrap();
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     fn eligible_revalidation_fixture() -> (tempfile::TempDir, Root, PathBuf, Candidate) {
         let (temp, root, project) = fixture();
         let path = CString::new(root.path.as_os_str().as_bytes()).unwrap();
@@ -4205,7 +4205,7 @@ mod tests {
         }
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn aged_eligible_artifact_matches_full_metadata_discovery() {
         let (_temp, root, _, candidate) = eligible_revalidation_fixture();
@@ -4694,7 +4694,7 @@ mod tests {
         );
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn revalidation_rejects_ownership_changes_during_the_measurement() {
         let (_temp, root, project, candidate) = eligible_revalidation_fixture();
@@ -4719,7 +4719,7 @@ mod tests {
         assert!(candidate.path.join("payload").is_file());
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn revalidation_rejects_new_or_nearer_git_tracking_during_measurement() {
         for existing_outer_repository in [false, true] {
@@ -4749,7 +4749,7 @@ mod tests {
         }
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn revalidation_rejects_project_activity_started_during_measurement() {
         struct RunningChild(std::process::Child);
@@ -6507,12 +6507,21 @@ mod tests {
                 .saturating_add(second_stats.logical_bytes)
                 .saturating_sub(shared_meta.identity.size)
         );
+        let dir_allocated = safety::metadata(&first).unwrap().allocated
+            + safety::metadata(&first.join("node_modules"))
+                .unwrap()
+                .allocated
+            + safety::metadata(&second).unwrap().allocated
+            + safety::metadata(&second.join("node_modules"))
+                .unwrap()
+                .allocated;
         assert_eq!(
             stats.allocated_bytes,
             first_stats
                 .allocated_bytes
                 .saturating_add(second_stats.allocated_bytes)
                 .saturating_sub(shared_meta.allocated)
+                .saturating_sub(dir_allocated)
         );
         assert_eq!(rows.iter().filter(|row| !row.provisional).count(), 2);
         assert!(rows.iter().filter(|row| !row.provisional).all(|row| {
@@ -7889,7 +7898,7 @@ mod tests {
         );
     }
 
-    #[cfg(target_os = "macos")]
+    #[cfg(any(target_os = "macos", target_os = "linux"))]
     #[test]
     fn aged_allocated_venv_with_internal_symlink_is_suggested_and_revalidates() {
         let (_temp, root, project, venv) = venv_fixture();

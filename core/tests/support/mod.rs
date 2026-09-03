@@ -34,6 +34,11 @@ fn stage_helper() -> io::Result<()> {
     let directory = executable
         .parent()
         .ok_or_else(|| io::Error::other("Test executable has no parent"))?;
+    let mut dir_perms = fs::metadata(directory)?.permissions();
+    if dir_perms.mode() & 0o022 != 0 {
+        dir_perms.set_mode(dir_perms.mode() & !0o022);
+        fs::set_permissions(directory, dir_perms)?;
+    }
     let destination = directory.join("chippytea-scan-helper");
     let mut temporary = tempfile::NamedTempFile::new_in(directory)?;
     temporary.write_all(&bytes)?;
