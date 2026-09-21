@@ -9,7 +9,7 @@ let package = Package(
     name: "chippytea",
     platforms: [.macOS(.v14)],
     dependencies: [
-        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6")
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.10.0")
     ],
     targets: [
         .systemLibrary(name: "ChippyteaCore", path: "native/Bridge"),
